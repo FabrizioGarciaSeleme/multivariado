@@ -1,0 +1,93 @@
+---
+title: "Datos simulados FPCA"
+output: html_document
+date: ""
+author: "Autores: Brito, Diana; Carrillo, Wilson; García Seleme, Fabrizio"
+---
+
+## Generando datos simulados
+
+Datos funcionales: tipo especial de dato en el que cada "observación" no es un único valor, sino un conjunto de valores repetidos en una dimensión (ej. el tiempo o el espacio), cada dato es una curva. Ejemplo: variación de la temperatura en un día medida una vez por hora, para 100 días distintos.
+
+Para este ejemplo simulamos 50 observaciones, cada una compuesta por 100 mediciones espaciadas en el tiempo.
+
+```{r, warning=FALSE, message=FALSE, echo=TRUE}
+library(fda)
+
+set.seed(123)
+n <- 50
+time_points <- seq(0, 1, length.out = 100)
+simulated_data <- matrix(rnorm(n * length(time_points)), nrow = length(time_points))
+
+# Convertir a objeto funcional
+fd_data <- Data2fd(argvals = time_points, y = simulated_data)
+```
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+plot(fd_data, main = "Funciones Base Simuladas")
+```
+
+
+```{r, echo=TRUE}
+pca_fd <- pca.fd(fd_data, nharm = 3, centerfns = FALSE)
+
+```
+El argumento `nharm` permite elegir el número de armónicos principales.
+
+El argumento `centerfns` permite "centrar" las funciones, dado que les resta la función media. En este caso desactivamos la función debido a que los valores fueron generados a partir de una distribución Z, que ya está centrada en cero. Una vez realizado el FPCA, con el comando `pca_fd$meanfd[[1]]` es posible ver esta función de medias con sus valores.
+
+```{r, echo=TRUE}
+pca_fd$varprop
+
+```
+La interpretación de los valores propios es similar a la de un ACP convencional. En este caso al ser variables totalmente aleatorias, los armónicos principales explican un porcentaje muy bajo de la variabilidad total.
+
+
+```{r, echo=FALSE}
+barplot(pca_fd$varprop * 100, 
+        main = "Varianza Explicada (%)", 
+        names.arg = paste0("Componente ", 1:3))
+```
+
+Al graficar los armónicos, se puede ver que éstos tienen un fuerte componente aleatorio (fluctúan mucho).
+
+```{r, echo=FALSE}
+plot(pca_fd$harmonics, main = "Armónicos Principales")
+```
+
+---
+
+# Aplicación en agronomía
+
+```{r echo=TRUE, warning=FALSE}
+library(tidyr)
+library(ggplot2)
+# Simulación de series espectrales
+set.seed(789)
+tiempo <- seq(0, 1, length.out = 100)
+ndvi <- 0.5 + 0.3 * sin(2 * pi * tiempo) + rnorm(100, sd = 0.05)
+evi <- 0.4 + 0.2 * cos(2 * pi * tiempo) + rnorm(100, sd = 0.04)
+
+datos_vegetacion <- data.frame(
+  Tiempo = tiempo,
+  NDVI = ndvi,
+  EVI = evi
+)
+
+datos_long_vegetacion <- pivot_longer(
+  datos_vegetacion,
+  cols = c(NDVI, EVI),
+  names_to = "Índice",
+  values_to = "Valor"
+)
+
+ggplot(datos_long_vegetacion, aes(x = Tiempo, y = Valor, color = Índice)) +
+  geom_line(linewidth = 1) +
+  theme_minimal() +
+  labs(
+    title = "Series Espectrales de Vegetación",
+    subtitle = "Simulación de NDVI y EVI",
+    x = "Tiempo (años)",
+    y = "Índice de Vegetación"
+  ) +
+  scale_color_brewer(palette = "Set1")
+```
